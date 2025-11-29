@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>脑源定位模拟器</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 设置 Inter 字体和深色主题 -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate-900 */
+            color: #e2e8f0; /* Slate-200 */
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen">
+
+    <div id="app" class="max-w-4xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-indigo-400">🧠 脑源定位模拟器</h1>
+            <p class="text-gray-400">上传数据文件，通过 Python 后端运行溯源算法并获取 .mat 结果。</p>
+        </header>
+
+        <!-- 文件上传区 -->
+        <div id="upload-section" class="bg-slate-800 p-6 rounded-xl shadow-2xl mb-8">
+            <h2 class="text-xl font-semibold mb-4 border-b border-slate-700 pb-2">1. 配置与数据文件上传</h2>
+            
+            <!-- 算法选择 -->
+            <div class="mb-6 space-y-2">
+                <label for="algorithm-select" class="block text-sm font-medium text-yellow-300">选择溯源算法</label>
+                <select id="algorithm-select" 
+                        class="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="sbl">Sparse Bayesian Learning (SBL)</option>
+                    <option value="wmne">Weighted Minimum Norm Estimate (wMNE)</option>
+                    <option value="loreta">Low-Resolution Tomography (LORETA)</option>
+                    <option value="duvl1n">Deep Unfold NetWork (DUV-L1N)</option>
+                </select>
+            </div>
+            
+            <!-- 文件输入 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <label for="file-gain" class="block text-sm font-medium">Gain/Model (.mat)</label>
+                    <input type="file" id="file-gain" accept=".mat" class="w-full text-sm text-gray-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-600 file:text-white
+                        hover:file:bg-indigo-700
+                        rounded-lg p-2 border border-slate-700">
+                </div>
+                
+                <div class="space-y-2">
+                    <label for="file-b-storage" class="block text-sm font-medium">B/TBFs Data (.mat)</label>
+                    <input type="file" id="file-b-storage" accept=".mat" class="w-full text-sm text-gray-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-600 file:text-white
+                        hover:file:bg-indigo-700
+                        rounded-lg p-2 border border-slate-700">
+                </div>
+
+                <!-- 只需要两个关键文件，L和Cortex可以合并到Gain中或由后端处理 -->
+                <div class="space-y-2">
+                    <label for="file-L" class="block text-sm font-medium">L Matrix (.mat)</label>
+                    <input type="file" id="file-L" accept=".mat" class="w-full text-sm text-gray-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-600 file:text-white
+                        hover:file:bg-indigo-700
+                        rounded-lg p-2 border border-slate-700">
+                </div>
+                
+                <div class="space-y-2">
+                    <label for="file-cortex" class="block text-sm font-medium">Cortex (.mat)</label>
+                    <input type="file" id="file-cortex" accept=".mat" class="w-full text-sm text-gray-400
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-600 file:text-white
+                        hover:file:bg-indigo-700
+                        rounded-lg p-2 border border-slate-700">
+                </div>
+            </div>
+            
+            <div class="text-center mt-6">
+                <button id="run-button" 
+                        class="px-8 py-3 bg-green-500 text-white font-bold rounded-full shadow-lg transition duration-200 hover:bg-green-600 active:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    🚀 启动计算并下载结果
+                </button>
+            </div>
+        </div>
+
+        <!-- 模拟输出区 -->
+        <div id="output-section" class="bg-slate-800 p-6 rounded-xl shadow-2xl">
+            <h2 class="text-xl font-semibold mb-4 border-b border-slate-700 pb-2">2. 状态控制台</h2>
+            <div id="output-console" class="bg-black text-lime-400 font-mono text-sm p-3 h-64 overflow-y-scroll rounded-lg border border-slate-700">
+                准备就绪... 请上传文件、选择算法并点击运行按钮。
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const outputConsole = document.getElementById('output-console');
+        const runButton = document.getElementById('run-button');
+        const algorithmSelect = document.getElementById('algorithm-select');
+        const API_URL = 'http://127.0.0.1:5000/run_localization'; // ** 注意：这里需要指向您本地运行的 Flask 服务器地址 **
+
+        function log(message, type = 'info') {
+            const span = document.createElement('span');
+            let color = 'text-lime-400';
+            if (type === 'error') color = 'text-red-400';
+            if (type === 'success') color = 'text-green-400';
+            if (type === 'highlight') color = 'text-yellow-400';
+            
+            span.className = `${color} block whitespace-pre-wrap`;
+            span.textContent = message;
+            outputConsole.appendChild(span);
+            outputConsole.scrollTop = outputConsole.scrollHeight;
+        }
+
+        function clearConsole() {
+            outputConsole.innerHTML = '';
+            log("正在启动溯源计算...", 'info');
+        }
+
+        async function runLocalization() {
+            clearConsole();
+            runButton.disabled = true;
+
+            const files = {
+                gain: document.getElementById('file-gain').files[0],
+                L: document.getElementById('file-L').files[0],
+                bStorage: document.getElementById('file-b-storage').files[0],
+                cortex: document.getElementById('file-cortex').files[0],
+            };
+            const algorithm = algorithmSelect.value;
+            
+            if (!files.gain || !files.bStorage || !files.cortex || !files.L) {
+                log('❌ 错误：Gain/Model 文件 ， B/TBFs Data 文件 ，L 文件和Cortex 文件是必需的。', 'error');
+                runButton.disabled = false;
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('algorithm', algorithm);
+            formData.append('model_file', files.gain);
+            formData.append('data_file', files.bStorage);
+            formData.append('l_file',files.L)
+            formData.append('cortex_file',files.cortex)
+            // if (files.L) formData.append('l_file', files.L);
+            // if (files.cortex) formData.append('cortex_file', files.cortex);
+            
+            log(`--- 1. 正在发送请求至后端 (${API_URL}) ---`);
+            log(`   选中算法: ${algorithm}`);
+            log(`   Gain 文件: ${files.gain.name}`);
+            log(`   B_Storage 文件: ${files.bStorage.name}`);
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`❌ 后端计算失败，HTTP 状态码: ${response.status}`, 'error');
+                    log(`   服务器返回错误信息: ${errorText}`, 'error');
+                    return;
+                }
+
+                // 2. 接收文件并下载
+                log("--- 2. 后端计算成功，正在下载结果文件... ---", 'highlight');
+                
+                const blob = await response.blob();
+                const disposition = response.headers.get('Content-Disposition');
+                let filename = 'source_results.mat';
+                
+                if (disposition && disposition.indexOf('attachment') !== -1) {
+                    const filenameMatch = disposition.match(/filename="(.+?)"/);
+                    if (filenameMatch && filenameMatch[1]) {
+                        filename = filenameMatch[1];
+                    }
+                }
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                log(`✅ 文件 ${filename} 下载成功！`, 'success');
+
+            } catch (error) {
+                log(`❌ 连接错误：无法连接到后端服务器 (${error.message})`, 'error');
+                log('   请确保您已在本地运行 Flask 服务器 (app.py)。', 'highlight');
+            } finally {
+                runButton.disabled = false;
+                log("\n" + "=".repeat(40), 'info');
+            }
+        }
+
+        runButton.addEventListener('click', runLocalization);
+
+        // 初始化时打印欢迎信息
+        log("请运行本地 Python 服务器 (app.py) 来启用算法计算。", 'info');
+
+    </script>
+</body>
+</html>

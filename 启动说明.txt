@@ -1,0 +1,9 @@
+方式一
+启动溯源模拟器由于环境配置在anaconda的matlab_py38环境下，因此需要在powershell的对应虚拟环境中运行。
+1、切换盘符(D:)
+2、cd到对应文件夹(cd code\Python\溯源模拟器)
+3、激活环境(conda activate matlab_py38)
+4、运行(python app.py)
+
+方式二
+直接在pycharm的terminal界面，切换到command prompt，然后激活环境，切换目录，然后运行app.py
