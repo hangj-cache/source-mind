@@ -54,7 +54,7 @@ pip install flask numpy scipy flask-cors
 | API 参数名    | 文件描述         | Brainstorm 对应数据           | 必需的 MATLAB 变量名及结构                                   |
 | ------------- | ---------------- | ----------------------------- | ------------------------------------------------------------ |
 | `model_file`  | 头模型/增益矩阵  | Head model                    | **Gain** 矩阵 或 包含 **Gain** 字段的 **model** 结构体。     |
-| `data_file`   | 传感器数据存储   | Time-Frequency (TF) 或 Epochs | 必须包含 **B_dataStorage** (脑电数据) 和 **TBFs_dataStorage** (时间-基函数)。 |
+| `data_file`   | 传感器数据存储   | Time-Frequency (TF) 或 Epochs | 必须包含 **B** (脑电数据) 和 **s_real**(脑源数据)            |
 | `cortex_file` | 皮层/源空间几何  | Surface/Cortex file           | 必须包含名为 **Cortex** 的结构体。                           |
 | `l_file`      | L 矩阵 (L-Curve) | Tikhonov 规则化参数           | 必须包含 L 矩阵 (通常为对角矩阵)，作为文件中的主要 `numpy.ndarray` 变量。 |
 
